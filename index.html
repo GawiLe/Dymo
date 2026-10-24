@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Adreslabels DYMO 550</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+/* Layout: werkbank links (invoer), labelrol rechts (voorbeeld op ware verhouding). */
+:root {
+  --bg: #eef1f4;
+  --panel: #ffffff;
+  --fg: #1b2430;
+  --muted: #5d6b7a;
+  --line: #d5dce3;
+  --accent: #1f4fd1;
+  --accent-fg: #ffffff;
+  --label: #ffffff;
+  --label-ink: #111111;
+  --warn: #b4540a;
+  --warn-bg: #fdf0e2;
+  --shadow: 0 1px 2px rgba(20,30,50,.10), 0 4px 14px rgba(20,30,50,.08);
+  --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11161d; --panel: #19212b; --fg: #e4e9ef; --muted: #93a1b0; --line: #2c3743;
+    --accent: #6f95ff; --accent-fg: #0b1220; --warn: #f0a35e; --warn-bg: #3a2614;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.35);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11161d; --panel: #19212b; --fg: #e4e9ef; --muted: #93a1b0; --line: #2c3743;
+  --accent: #6f95ff; --accent-fg: #0b1220; --warn: #f0a35e; --warn-bg: #3a2614;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.35);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font: 14px/1.5 var(--font-ui);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 48px;
+}
+.wrap { max-width: 1200px; margin: 0 auto; display: grid; gap: 20px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 20px; }
+h1 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -.01em; text-wrap: balance; }
+h1 small { font-family: var(--font-mono); font-weight: 400; font-size: 13px; color: var(--muted); margin-left: 8px; }
+.sub { color: var(--muted); margin: 0; }
+main { display: grid; grid-template-columns: minmax(0, 400px) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 860px) { main { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: grid; gap: 16px; min-width: 0; }
+.field { display: grid; gap: 6px; min-width: 0; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+label, .lbl { font-size: 12px; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.check { text-transform: none; letter-spacing: 0; font-size: 14px; color: var(--fg); font-weight: 400; display: flex; gap: 8px; align-items: center; }
+input[type=text], input[type=number], select, textarea {
+  font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line);
+  border-radius: 6px; padding: 8px 10px; width: 100%; min-width: 0;
+}
+textarea { font-family: var(--font-mono); font-size: 13px; line-height: 1.45; min-height: 300px; resize: vertical; }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible, .btn:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+.btn {
+  font: inherit; font-weight: 500; cursor: pointer; border-radius: 6px; padding: 9px 14px;
+  border: 1px solid var(--line); background: var(--panel); color: var(--fg);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.small { padding: 5px 10px; font-size: 13px; }
+.btn[disabled] { opacity: .5; cursor: not-allowed; }
+.hint { font-size: 12.5px; color: var(--muted); margin: 0; }
+.hint code { font-family: var(--font-mono); font-size: 12px; }
+.pill { font-size: 11.5px; font-weight: 500; padding: 2px 8px; border-radius: 99px; background: var(--warn-bg); color: var(--warn); }
+.file-in { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.drop.over { outline: 2px dashed var(--accent); outline-offset: 4px; }
+
+.preview-head { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; }
+.count { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--muted); }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.roll { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 14px; }
+.lab { display: grid; gap: 4px; min-width: 0; }
+.lab svg { width: 100%; height: auto; display: block; background: var(--label); border-radius: 3px; box-shadow: var(--shadow); }
+.lab .meta { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); font-family: var(--font-mono); }
+.empty { padding: 40px 16px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 10px; }
+details { font-size: 13.5px; }
+details summary { cursor: pointer; font-weight: 500; }
+details ol { padding-left: 20px; margin: 8px 0 0; display: grid; gap: 4px; }
+.status { font-size: 13px; min-height: 1.4em; color: var(--muted); }
+
+#printArea { display: none; }
+@media print {
+  html, body { background: #fff !important; padding: 0 !important; margin: 0 !important; }
+  .wrap { display: none !important; }
+  #printArea { display: block; }
+  #printArea svg { display: block; break-after: page; page-break-after: always; }
+  #printArea svg:last-child { break-after: auto; page-break-after: auto; }
+}
+</style>
+<style id="pageSize">@page { size: 89mm 28mm; margin: 0; }</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Adreslabels <small>DYMO LabelWriter 550</small></h1>
+      <p class="sub">Plak een lijst of importeer een Excel-bestand. Elk adres wordt één label.</p>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel" aria-label="Invoer">
+      <div class="field">
+        <label for="format">Labelformaat</label>
+        <select id="format"></select>
+      </div>
+
+      <div class="field">
+        <label for="sender">Afzender (klein onderaan)</label>
+        <input id="sender" type="text" value="Afzender: Anna Paulownastraat 1, 2316NM Leiden">
+      </div>
+
+      <div class="field drop" id="drop">
+        <div class="row" style="justify-content:space-between">
+          <span class="lbl">Adressen</span>
+          <span class="row" style="gap:6px">
+            <span class="pill" id="samplePill">Voorbeeld</span>
+            <label class="btn small" for="file" style="text-transform:none;letter-spacing:0;font-size:13px;color:var(--fg)">Excel / CSV importeren</label>
+            <input class="file-in" id="file" type="file" accept=".xlsx,.xls,.csv,.ods,.txt">
+            <button class="btn small" id="clear" type="button">Wissen</button>
+          </span>
+        </div>
+        <textarea id="input" spellcheck="false" aria-label="Adressen, gescheiden door een lege regel"></textarea>
+        <p class="hint">Eén adres per blok, blokken gescheiden door een lege regel. Eén adres per regel kan ook, met tabs (geplakt uit Excel) of <code>;</code> tussen de velden. Je kunt een bestand ook hierheen slepen.</p>
+      </div>
+
+      <div class="field">
+        <span class="lbl">Opties</span>
+        <label class="check"><input type="checkbox" id="postnl" checked> <span>Postcode en plaats in PostNL-notatie (<code>2316&nbsp;NM&nbsp;&nbsp;LEIDEN</code>)</span></label>
+        <label class="check"><input type="checkbox" id="bold"> Eerste regel (naam) vet</label>
+        <label class="check"><input type="checkbox" id="dropNL" checked> Land weglaten als het Nederland is</label>
+        <div class="row">
+          <label for="copies" class="check" style="flex:1">Aantal labels per adres</label>
+          <input id="copies" type="number" min="1" max="50" value="1" style="width:80px">
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" aria-label="Voorbeeld">
+      <div class="preview-head">
+        <div class="count" id="count">0 labels</div>
+        <div class="actions">
+          <button class="btn" id="pdf" type="button">PDF downloaden</button>
+          <button class="btn primary" id="print" type="button">Printen</button>
+        </div>
+      </div>
+      <div class="status" id="status" role="status"></div>
+      <div class="roll" id="roll"></div>
+      <details>
+        <summary>Zo print je op de DYMO 550</summary>
+        <ol>
+          <li>Plaats de juiste rol (bijv. 99010 voor standaard adreslabels) en kies hierboven hetzelfde formaat.</li>
+          <li>Klik <b>Printen</b> en kies als printer <b>DYMO LabelWriter 550</b>.</li>
+          <li>Zet marges op <b>Geen</b>, schaal op <b>100%</b> / <b>Werkelijke grootte</b>, en schakel kop- en voetteksten uit.</li>
+          <li>Kies bij papierformaat het labeltype van je rol (bijv. <i>99010 Address</i> of <i>30252 Address</i>) als de printer dat vraagt.</li>
+          <li>Liever via PDF? Download de PDF: elke pagina is precies één label. Print die op <b>Werkelijke grootte</b>.</li>
+        </ol>
+      </details>
+    </section>
+  </main>
+</div>
+<div id="printArea" aria-hidden="true"></div>
+
+<script>
+(() => {
+  // DYMO LabelWriter labels die de 550 ondersteunt (alleen originele DYMO-rollen werken op de 550).
+  const FORMATS = [
+    { id: "99010", name: "99010 – Standaard adres", w: 89, h: 28, max: 12 },
+    { id: "99012", name: "99012 – Groot adres", w: 89, h: 36, max: 14 },
+    { id: "99014", name: "99014 – Verzending", w: 101, h: 54, max: 18 },
+    { id: "11354", name: "11354 – Multifunctioneel", w: 57, h: 32, max: 11 },
+  ];
+  const SAMPLE = [
+    "Familie de Vries",
+    "Breestraat 12",
+    "2311 CH Leiden",
+    "",
+    "Bakkerij Het Korenschoof",
+    "T.a.v. mevrouw J. Jansen",
+    "Nieuwe Rijn 45a",
+    "2312 JE Leiden",
+    "",
+    "Dhr. P. van den Berg",
+    "Kerkstraat 7 bis",
+    "1017 GA Amsterdam",
+  ].join("\n");
+
+  const PT = 25.4 / 72;          // 1 pt in mm
+  const FONT = "Helvetica, Arial, sans-serif";
+  const SENDER_PT = 6;
+  const $ = (id) => document.getElementById(id);
+  const els = {
+    format: $("format"), sender: $("sender"), input: $("input"), file: $("file"),
+    clear: $("clear"), postnl: $("postnl"), bold: $("bold"), dropNL: $("dropNL"),
+    copies: $("copies"), roll: $("roll"), count: $("count"), print: $("print"),
+    pdf: $("pdf"), status: $("status"), printArea: $("printArea"), drop: $("drop"),
+    samplePill: $("samplePill"),
+  };
+
+  FORMATS.forEach((f) => {
+    const o = document.createElement("option");
+    o.value = f.id; o.textContent = `${f.name} (${f.h} × ${f.w} mm)`;
+    els.format.append(o);
+  });
+
+  // ---------- opslag (alleen gemak, mag falen) ----------
+  const store = {
+    get(k) { try { return localStorage.getItem("dymo." + k); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem("dymo." + k, v); } catch {} },
+  };
+  const saved = {
+    format: store.get("format"), sender: store.get("sender"), input: store.get("input"),
+    postnl: store.get("postnl"), bold: store.get("bold"), dropNL: store.get("dropNL"),
+  };
+  if (saved.format && FORMATS.some((f) => f.id === saved.format)) els.format.value = saved.format;
+  if (saved.sender !== null) els.sender.value = saved.sender;
+  els.input.value = saved.input !== null ? saved.input : SAMPLE;
+  ["postnl", "bold", "dropNL"].forEach((k) => { if (saved[k] !== null) els[k].checked = saved[k] === "1"; });
+
+  // ---------- parsen ----------
+  const RE_PC_ONLY = /^(\d{4})\s?([a-z]{2})$/i;
+  const RE_PC_LINE = /^(\d{4})\s?([a-z]{2})\b[\s,]*(.*)$/i;
+  const RE_HOUSENR = /^\d{1,5}\s?[a-z]{0,2}(\s?[-\/]?\s?[a-z0-9]{1,4})?$/i;
+  const RE_COUNTRY_NL = /^(nederland|the netherlands|netherlands|nl)$/i;
+
+  function rowToLines(cells) {
+    const c = cells.map((x) => String(x ?? "").trim()).filter(Boolean);
+    const out = [];
+    for (let i = 0; i < c.length; i++) {
+      const v = c[i];
+      const prev = out[out.length - 1];
+      if (RE_PC_ONLY.test(v) && i + 1 < c.length) {
+        out.push(v + " " + c[++i]);                          // postcode + plaats
+      } else if (prev && RE_HOUSENR.test(v) && !RE_PC_LINE.test(prev) && /[a-z]/i.test(prev)) {
+        out[out.length - 1] = prev + " " + v;                 // straat + huisnummer
+      } else {
+        out.push(v);
+      }
+    }
+    return out;
+  }
+
+  function parseText(text) {
+    const lines = text.replace(/\r/g, "").split("\n");
+    const hasBlank = /\n\s*\n/.test(text.trim());
+    const delimited = lines.filter((l) => l.trim()).every((l) => /\t|;/.test(l));
+    if (!hasBlank && delimited) {
+      return lines.filter((l) => l.trim()).map((l) => rowToLines(l.split(/\t|;/)));
+    }
+    const blocks = [];
+    let cur = [];
+    for (const l of lines) {
+      if (l.trim() === "") { if (cur.length) blocks.push(cur); cur = []; }
+      else cur.push(l.trim());
+    }
+    if (cur.length) blocks.push(cur);
+    return blocks.map((b) => {
+      if (b.length !== 1) return b;
+      if (/\t|;/.test(b[0])) return rowToLines(b[0].split(/\t|;/));
+      if ((b[0].match(/,/g) || []).length >= 2) return rowToLines(b[0].split(","));
+      return b;
+    });
+  }
+
+  function formatLines(lines) {
+    let out = lines.slice();
+    if (els.dropNL.checked && out.length > 1 && RE_COUNTRY_NL.test(out[out.length - 1])) out.pop();
+    if (els.postnl.checked) {
+      out = out.map((l) => {
+        const m = l.match(RE_PC_LINE);
+        if (!m || !m[3]) return m ? `${m[1]} ${m[2].toUpperCase()}` : l;
+        return `${m[1]} ${m[2].toUpperCase()}  ${m[3].toUpperCase()}`;
+      });
+    }
+    return out;
+  }
+
+  // ---------- Excel-kolommen herkennen ----------
+  const HEAD = {
+    company: /^(bedrijf|bedrijfsnaam|organisatie|firma|company|instelling)$/,
+    tav: /^(tav|attn|attentie|tenaamstelling)$/,
+    salutation: /^(aanhef|titel|title)$/,
+    first: /^(voornaam|voorletters|firstname|initialen)$/,
+    middle: /^(tussenvoegsel|tussenv)$/,
+    last: /^(achternaam|lastname|surname)$/,
+    name: /^(naam|name|volledigenaam|contactpersoon|ontvanger)$/,
+    street: /^(straat|straatnaam|adres|address|street|adresregel1|adres1)$/,
+    street2: /^(adresregel2|adres2)$/,
+    number: /^(huisnummer|huisnr|nr|nummer|number|no)$/,
+    suffix: /^(toevoeging|toev|huisnummertoevoeging)$/,
+    postcode: /^(postcode|zip|zipcode|postalcode)$/,
+    city: /^(plaats|woonplaats|stad|city|plaatsnaam)$/,
+    country: /^(land|country)$/,
+  };
+  const norm = (s) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+
+  function rowsToBlocks(rows) {
+    rows = rows.filter((r) => r && r.some((c) => String(c ?? "").trim()));
+    if (!rows.length) return [];
+    const map = {};
+    rows[0].forEach((h, i) => {
+      const n = norm(h);
+      for (const [k, re] of Object.entries(HEAD)) if (!(k in map) && re.test(n)) { map[k] = i; break; }
+    });
+    const hasHeader = Object.keys(map).length >= 2;
+    if (!hasHeader) return rows.map(rowToLines);
+    const get = (r, k) => (k in map ? String(r[map[k]] ?? "").trim() : "");
+    return rows.slice(1).map((r) => {
+      const lines = [];
+      const company = get(r, "company");
+      const person = get(r, "name") || [get(r, "salutation"), get(r, "first"), get(r, "middle"), get(r, "last")].filter(Boolean).join(" ");
+      const tav = get(r, "tav");
+      if (company) lines.push(company);
+      if (tav) lines.push(/^t\.?a\.?v/i.test(tav) ? tav : "T.a.v. " + tav);
+      if (person) lines.push(company && !tav ? "T.a.v. " + person : person);
+      const street = [get(r, "street"), get(r, "number"), get(r, "suffix")].filter(Boolean).join(" ").replace(/\s+(-)/, "$1");
+      if (street) lines.push(street);
+      if (get(r, "street2")) lines.push(get(r, "street2"));
+      const pc = [get(r, "postcode"), get(r, "city")].filter(Boolean).join(" ");
+      if (pc) lines.push(pc);
+      if (get(r, "country")) lines.push(get(r, "country"));
+      return lines;
+    }).filter((l) => l.length);
+  }
+
+  function blocksToText(blocks) { return blocks.map((b) => b.join("\n")).join("\n\n"); }
+
+  async function importFile(file) {
+    const name = file.name.toLowerCase();
+    try {
+      let rows;
+      if (/\.(csv|txt)$/.test(name)) {
+        const text = await file.text();
+        const delim = (text.match(/;/g) || []).length > (text.match(/,/g) || []).length ? ";" : (text.includes("\t") ? "\t" : ",");
+        rows = text.replace(/\r/g, "").split("\n").map((l) => splitCSV(l, delim));
+      } else {
+        if (!window.XLSX) throw new Error("De Excel-lezer kon niet laden (geen internet?). Sla het bestand op als CSV of kopieer de cellen en plak ze in het tekstvak.");
+        const wb = XLSX.read(await file.arrayBuffer(), { type: "array" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: "" });
+      }
+      const blocks = rowsToBlocks(rows);
+      if (!blocks.length) throw new Error("Geen adressen gevonden in " + file.name + ".");
+      els.input.value = blocksToText(blocks);
+      setStatus(`${blocks.length} adressen geïmporteerd uit ${file.name}. Controleer ze in het tekstvak.`);
+      update();
+    } catch (e) {
+      setStatus(e.message, true);
+    }
+  }
+
+  function splitCSV(line, d) {
+    const out = []; let cur = ""; let q = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (q) { if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; } else if (ch === '"') q = false; else cur += ch; }
+      else if (ch === '"') q = true;
+      else if (ch === d) { out.push(cur); cur = ""; }
+      else cur += ch;
+    }
+    out.push(cur);
+    return out;
+  }
+
+  // ---------- opmaak van een label ----------
+  const ctx = document.createElement("canvas").getContext("2d");
+  function textWidthMM(str, pt, bold) {
+    ctx.font = `${bold ? "bold " : ""}100px ${FONT}`;
+    return ctx.measureText(str).width / 100 * pt * PT;
+  }
+
+  function layout(lines, fmt, sender) {
+    const padX = fmt.w >= 80 ? 4 : 3, padY = 2;
+    const innerW = fmt.w - padX * 2;
+    const senderH = sender ? SENDER_PT * PT * 1.2 + 1 : 0;
+    const areaTop = padY, areaH = fmt.h - padY * 2 - senderH;
+    const bold = els.bold.checked;
+    const LH = 1.18;
+    let pt = fmt.max;
+    const fits = (p) => lines.every((l, i) => textWidthMM(l, p, bold && i === 0) <= innerW) && lines.length * p * PT * LH <= areaH;
+    while (pt > 5 && !fits(pt)) pt -= 0.25;
+    const lh = pt * PT * LH;
+    const blockH = lines.length * lh;
+    const top = areaTop + Math.max(0, (areaH - blockH) / 2);
+    const rows = lines.map((t, i) => ({ t, x: padX, y: top + i * lh + pt * PT * 0.86 + (lh - pt * PT) / 2, bold: bold && i === 0 }));
+    let senderPt = SENDER_PT;
+    while (senderPt > 4 && textWidthMM(sender, senderPt, false) > innerW) senderPt -= 0.25;
+    return {
+      pt, rows, ok: fits(pt), padX,
+      sender: sender ? { t: sender, x: padX, y: fmt.h - padY - 0.2, pt: senderPt } : null,
+    };
+  }
+
+  const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  function svgFor(L, fmt, forPrint) {
+    const size = forPrint ? `width="${fmt.w}mm" height="${fmt.h}mm"` : "";
+    let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${fmt.w} ${fmt.h}" ${size} role="img" font-family="${FONT}">`;
+    if (forPrint) s += `<rect width="${fmt.w}" height="${fmt.h}" fill="#fff"/>`;
+    for (const r of L.rows) {
+      s += `<text x="${r.x.toFixed(2)}" y="${r.y.toFixed(2)}" font-size="${(L.pt * PT).toFixed(3)}" fill="#111"${r.bold ? ' font-weight="bold"' : ""} xml:space="preserve">${esc(r.t)}</text>`;
+    }
+    if (L.sender) {
+      s += `<text x="${L.sender.x.toFixed(2)}" y="${L.sender.y.toFixed(2)}" font-size="${(L.sender.pt * PT).toFixed(3)}" fill="#333" xml:space="preserve">${esc(L.sender.t)}</text>`;
+    }
+    return s + "</svg>";
+  }
+
+  // ---------- render ----------
+  let current = [];
+  function fmt() { return FORMATS.find((f) => f.id === els.format.value) || FORMATS[0]; }
+
+  function update() {
+    const f = fmt();
+    const sender = els.sender.value.trim();
+    const copies = Math.max(1, Math.min(50, parseInt(els.copies.value, 10) || 1));
+    const addresses = parseText(els.input.value).map(formatLines).filter((l) => l.length);
+    current = [];
+    addresses.forEach((lines) => { for (let i = 0; i < copies; i++) current.push(lines); });
+
+    $("pageSize").textContent = `@page { size: ${f.w}mm ${f.h}mm; margin: 0; }`;
+    els.samplePill.hidden = els.input.value.trim() !== SAMPLE.trim();
+
+    let warn = 0;
+    const html = addresses.map((lines, i) => {
+      const L = layout(lines, f, sender);
+      if (!L.ok) warn++;
+      return `<div class="lab"><div style="aspect-ratio:${f.w}/${f.h}">${svgFor(L, f, false)}</div>
+        <div class="meta"><span>#${i + 1}</span>${L.ok ? `<span>${L.pt.toFixed(1)} pt</span>` : `<span class="pill">Te lang, wordt afgekapt</span>`}</div></div>`;
+    }).join("");
+    els.roll.innerHTML = html || `<div class="empty">Nog geen adressen. Plak ze links in het tekstvak of importeer een Excel-bestand.</div>`;
+    const n = current.length;
+    els.count.textContent = `${addresses.length} ${addresses.length === 1 ? "adres" : "adressen"} · ${n} ${n === 1 ? "label" : "labels"}`;
+    els.print.disabled = els.pdf.disabled = n === 0;
+    if (warn) setStatus(`${warn} ${warn === 1 ? "label heeft" : "labels hebben"} een regel die te lang is. Kort die regel in of kies een groter label.`, true);
+    else if (els.status.dataset.err) setStatus("");
+
+    store.set("format", f.id); store.set("sender", els.sender.value); store.set("input", els.input.value);
+    ["postnl", "bold", "dropNL"].forEach((k) => store.set(k, els[k].checked ? "1" : "0"));
+  }
+
+  function setStatus(msg, err) {
+    els.status.textContent = msg;
+    els.status.style.color = err ? "var(--warn)" : "";
+    if (err) els.status.dataset.err = "1"; else delete els.status.dataset.err;
+  }
+
+  function buildPrintArea() {
+    const f = fmt(), sender = els.sender.value.trim();
+    els.printArea.innerHTML = current.map((lines) => svgFor(layout(lines, f, sender), f, true)).join("");
+  }
+
+  function doPrint() {
+    if (!current.length) return;
+    buildPrintArea();
+    window.print();
+  }
+
+  function doPDF() {
+    if (!current.length) return;
+    if (!window.jspdf) { setStatus("De PDF-maker kon niet laden (geen internet?). Gebruik Printen en kies daar 'Opslaan als PDF'.", true); return; }
+    const f = fmt(), sender = els.sender.value.trim();
+    const orient = f.w > f.h ? "landscape" : "portrait";
+    const doc = new jspdf.jsPDF({ orientation: orient, unit: "mm", format: [f.w, f.h] });
+    current.forEach((lines, i) => {
+      if (i) doc.addPage([f.w, f.h], orient);
+      const L = layout(lines, f, sender);
+      doc.setTextColor(17, 17, 17);
+      L.rows.forEach((r) => {
+        doc.setFont("helvetica", r.bold ? "bold" : "normal");
+        doc.setFontSize(L.pt);
+        doc.text(r.t, r.x, r.y);
+      });
+      if (L.sender) {
+        doc.setFont("helvetica", "normal"); doc.setFontSize(L.sender.pt); doc.setTextColor(51, 51, 51);
+        doc.text(L.sender.t, L.sender.x, L.sender.y);
+      }
+    });
+    const stamp = new Date().toISOString().slice(0, 10);
+    doc.save(`adreslabels-${f.id}-${stamp}.pdf`);
+    setStatus(`PDF met ${current.length} labels gedownload.`);
+  }
+
+  // ---------- events ----------
+  ["input", "change"].forEach((ev) => {
+    [els.format, els.sender, els.input, els.postnl, els.bold, els.dropNL, els.copies].forEach((el) => el.addEventListener(ev, update));
+  });
+  els.file.addEventListener("change", () => { if (els.file.files[0]) importFile(els.file.files[0]); els.file.value = ""; });
+  els.clear.addEventListener("click", () => { els.input.value = ""; update(); els.input.focus(); });
+  els.print.addEventListener("click", doPrint);
+  els.pdf.addEventListener("click", doPDF);
+  els.drop.addEventListener("dragover", (e) => { e.preventDefault(); els.drop.classList.add("over"); });
+  els.drop.addEventListener("dragleave", () => els.drop.classList.remove("over"));
+  els.drop.addEventListener("drop", (e) => {
+    els.drop.classList.remove("over");
+    const f = e.dataTransfer.files[0];
+    if (f) { e.preventDefault(); importFile(f); }
+  });
+  window.addEventListener("beforeprint", buildPrintArea);
+
+  // hook voor scripts (bijv. automatisch PDF maken vanuit een lijst)
+  window.dymoLabels = { setText(t) { els.input.value = t; update(); }, setFormat(id) { els.format.value = id; update(); }, buildPrintArea, count: () => current.length };
+
+  update();
+})();
+</script>
+</body>
+</html>
