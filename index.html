@@ -10,7 +10,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
-/* Layout: werkbank links (invoer), labelrol rechts (voorbeeld op ware verhouding). */
+/* Layout: smalle instellingenkolom links, adresboek als labelkaarten rechts; toevoegen/wijzigen in een pop-up. */
 :root {
   --bg: #eef1f4;
   --panel: #ffffff;
@@ -19,10 +19,14 @@
   --line: #d5dce3;
   --accent: #1f4fd1;
   --accent-fg: #ffffff;
+  --accent-soft: #e4ebfc;
   --label: #ffffff;
-  --label-ink: #111111;
   --warn: #b4540a;
   --warn-bg: #fdf0e2;
+  --danger: #c0262d;
+  --tag-bg-l: 92%;
+  --tag-fg-l: 32%;
+  --backdrop: rgba(20, 28, 40, .45);
   --shadow: 0 1px 2px rgba(20,30,50,.10), 0 4px 14px rgba(20,30,50,.08);
   --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
@@ -30,14 +34,16 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #11161d; --panel: #19212b; --fg: #e4e9ef; --muted: #93a1b0; --line: #2c3743;
-    --accent: #6f95ff; --accent-fg: #0b1220; --warn: #f0a35e; --warn-bg: #3a2614;
+    --accent: #6f95ff; --accent-fg: #0b1220; --accent-soft: #1f2b45; --warn: #f0a35e; --warn-bg: #3a2614;
+    --danger: #ff7a7f; --tag-bg-l: 24%; --tag-fg-l: 82%; --backdrop: rgba(0,0,0,.6);
     --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.35);
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #11161d; --panel: #19212b; --fg: #e4e9ef; --muted: #93a1b0; --line: #2c3743;
-  --accent: #6f95ff; --accent-fg: #0b1220; --warn: #f0a35e; --warn-bg: #3a2614;
+  --accent: #6f95ff; --accent-fg: #0b1220; --accent-soft: #1f2b45; --warn: #f0a35e; --warn-bg: #3a2614;
+  --danger: #ff7a7f; --tag-bg-l: 24%; --tag-fg-l: 82%; --backdrop: rgba(0,0,0,.6);
   --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.35);
   color-scheme: dark;
 }
@@ -49,59 +55,118 @@ body {
   padding-right: max(16px, env(safe-area-inset-right, 0px));
   padding-block: 24px 48px;
 }
-.wrap { max-width: 1200px; margin: 0 auto; display: grid; gap: 20px; }
-header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 20px; }
+.wrap { max-width: 1280px; margin: 0 auto; display: grid; gap: 20px; }
+header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; }
 h1 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -.01em; text-wrap: balance; }
 h1 small { font-family: var(--font-mono); font-weight: 400; font-size: 13px; color: var(--muted); margin-left: 8px; }
+h2 { margin: 0; font-size: 16px; font-weight: 600; }
 .sub { color: var(--muted); margin: 0; }
-main { display: grid; grid-template-columns: minmax(0, 400px) minmax(0, 1fr); gap: 20px; align-items: start; }
-@media (max-width: 860px) { main { grid-template-columns: minmax(0, 1fr); } }
+main { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 900px) { main { grid-template-columns: minmax(0, 1fr); } }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: grid; gap: 16px; min-width: 0; }
 .field { display: grid; gap: 6px; min-width: 0; }
-.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-label, .lbl { font-size: 12px; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
-.check { text-transform: none; letter-spacing: 0; font-size: 14px; color: var(--fg); font-weight: 400; display: flex; gap: 8px; align-items: center; }
-input[type=text], input[type=number], select, textarea {
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.spacer { flex: 1; }
+.lbl { font-size: 12px; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.check { font-size: 14px; display: flex; gap: 8px; align-items: flex-start; cursor: pointer; }
+.check input { margin-top: 4px; }
+input[type=text], input[type=search], input[type=number], select, textarea {
   font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line);
   border-radius: 6px; padding: 8px 10px; width: 100%; min-width: 0;
 }
-textarea { font-family: var(--font-mono); font-size: 13px; line-height: 1.45; min-height: 300px; resize: vertical; }
-input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible, .btn:focus-visible {
-  outline: 2px solid var(--accent); outline-offset: 2px;
-}
+textarea { font-family: var(--font-mono); font-size: 13px; line-height: 1.5; resize: vertical; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .btn {
-  font: inherit; font-weight: 500; cursor: pointer; border-radius: 6px; padding: 9px 14px;
+  font: inherit; font-weight: 500; cursor: pointer; border-radius: 6px; padding: 8px 14px;
   border: 1px solid var(--line); background: var(--panel); color: var(--fg);
-  display: inline-flex; align-items: center; gap: 6px;
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
 }
 .btn:hover { border-color: var(--accent); }
 .btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
 .btn.primary:hover { filter: brightness(1.08); }
-.btn.small { padding: 5px 10px; font-size: 13px; }
+.btn.danger { color: var(--danger); }
+.btn.danger.armed { background: var(--danger); color: #fff; border-color: var(--danger); }
+.btn.small { padding: 4px 10px; font-size: 13px; }
 .btn[disabled] { opacity: .5; cursor: not-allowed; }
 .hint { font-size: 12.5px; color: var(--muted); margin: 0; }
-.hint code { font-family: var(--font-mono); font-size: 12px; }
-.pill { font-size: 11.5px; font-weight: 500; padding: 2px 8px; border-radius: 99px; background: var(--warn-bg); color: var(--warn); }
+.hint code, code { font-family: var(--font-mono); font-size: 12px; }
+.pill { font-size: 11.5px; font-weight: 500; padding: 2px 8px; border-radius: 99px; background: var(--warn-bg); color: var(--warn); white-space: nowrap; }
 .file-in { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
-.drop.over { outline: 2px dashed var(--accent); outline-offset: 4px; }
-
-.preview-head { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; }
-.count { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--muted); }
-.actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.roll { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 14px; }
-.lab { display: grid; gap: 4px; min-width: 0; }
-.lab svg { width: 100%; height: auto; display: block; background: var(--label); border-radius: 3px; box-shadow: var(--shadow); }
-.lab .meta { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); font-family: var(--font-mono); }
-.empty { padding: 40px 16px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 10px; }
+.status { font-size: 13px; min-height: 1.4em; color: var(--muted); }
 details { font-size: 13.5px; }
 details summary { cursor: pointer; font-weight: 500; }
 details ol { padding-left: 20px; margin: 8px 0 0; display: grid; gap: 4px; }
-.status { font-size: 13px; min-height: 1.4em; color: var(--muted); }
+
+/* tags */
+.tag {
+  --h: 210;
+  display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 500;
+  padding: 1px 8px; border-radius: 99px; line-height: 1.6; white-space: nowrap;
+  background: hsl(var(--h) 60% var(--tag-bg-l)); color: hsl(var(--h) 55% var(--tag-fg-l));
+  border: 1px solid transparent;
+}
+.tag .x { font: inherit; background: none; border: 0; color: inherit; cursor: pointer; padding: 0 0 0 2px; opacity: .7; }
+.tag .x:hover { opacity: 1; }
+.tag.untagged { background: var(--bg); color: var(--muted); border-color: var(--line); }
+
+/* filterbalk */
+.filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  font: inherit; font-size: 13px; cursor: pointer; display: inline-flex; gap: 8px; align-items: center;
+  border-radius: 99px; padding: 5px 12px; border: 1px solid var(--line); background: var(--panel); color: var(--fg);
+}
+.chip .n { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 12px; color: var(--muted); }
+.chip .dot { width: 9px; height: 9px; border-radius: 50%; background: hsl(var(--h, 210) 60% 55%); }
+.chip[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); }
+.chip[aria-pressed="true"] .n { color: var(--fg); }
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; }
+.toolbar input[type=search] { width: 220px; max-width: 100%; flex: 0 1 220px; }
+.toolbar select { width: auto; }
+.count { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; }
+
+/* kaarten */
+.book { display: grid; gap: 22px; }
+.group { display: grid; gap: 10px; }
+.group-head { display: flex; align-items: center; gap: 8px; }
+.group-head .n { font-family: var(--font-mono); color: var(--muted); font-size: 13px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr)); gap: 14px; }
+.card {
+  font: inherit; color: inherit; text-align: left; cursor: pointer; background: none; border: 0; padding: 0;
+  display: grid; gap: 6px; min-width: 0; border-radius: 6px;
+}
+.card .sheet { background: var(--label); border-radius: 4px; box-shadow: var(--shadow); outline: 2px solid transparent; transition: outline-color .12s, transform .12s; }
+.card:hover .sheet { outline-color: var(--accent); }
+.card .sheet svg { width: 100%; height: auto; display: block; }
+.card .foot { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; min-height: 22px; }
+.card .edit { margin-left: auto; font-size: 12px; color: var(--muted); }
+.card:hover .edit { color: var(--accent); }
+.empty { padding: 48px 16px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 10px; display: grid; gap: 12px; justify-items: center; }
+@media (prefers-reduced-motion: reduce) { .card .sheet { transition: none; } }
+
+/* pop-up */
+dialog {
+  border: 1px solid var(--line); border-radius: 12px; padding: 0; background: var(--panel); color: var(--fg);
+  width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 32px); box-shadow: 0 20px 60px rgba(0,0,0,.3);
+}
+dialog::backdrop { background: var(--backdrop); }
+dialog form { display: grid; gap: 14px; padding: 20px; }
+.dlg-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.dlg-preview { background: var(--bg); border-radius: 8px; padding: 14px; }
+.dlg-preview svg { width: 100%; height: auto; display: block; background: var(--label); border-radius: 3px; box-shadow: var(--shadow); }
+.dlg-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.tagbox {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 6px 8px; min-height: 40px;
+  border: 1px solid var(--line); border-radius: 6px; background: var(--bg); cursor: text;
+}
+.tagbox:focus-within { outline: 2px solid var(--accent); outline-offset: 1px; }
+.tagbox input { border: 0 !important; outline: none; background: transparent !important; padding: 2px !important; flex: 1; min-width: 120px; width: auto !important; }
+.suggest { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.suggest button.tag { cursor: pointer; }
 
 #printArea { display: none; }
 @media print {
   html, body { background: #fff !important; padding: 0 !important; margin: 0 !important; }
-  .wrap { display: none !important; }
+  .wrap, dialog { display: none !important; }
   #printArea { display: block; }
   #printArea svg { display: block; break-after: page; page-break-after: always; }
   #printArea svg:last-child { break-after: auto; page-break-after: auto; }
@@ -114,75 +179,142 @@ details ol { padding-left: 20px; margin: 8px 0 0; display: grid; gap: 4px; }
   <header>
     <div>
       <h1>Adreslabels <small>DYMO LabelWriter 550</small></h1>
-      <p class="sub">Plak een lijst of importeer een Excel-bestand. Elk adres wordt één label.</p>
+      <p class="sub">Klik op een adres om het te wijzigen. Tags zijn alleen voor jou en worden niet geprint.</p>
+    </div>
+    <div class="row">
+      <button class="btn" id="openImport" type="button">Lijst importeren</button>
+      <button class="btn" id="export" type="button">Exporteren</button>
+      <button class="btn primary" id="add" type="button">+ Adres toevoegen</button>
     </div>
   </header>
 
   <main>
-    <section class="panel" aria-label="Invoer">
+    <aside class="panel" aria-label="Instellingen">
       <div class="field">
-        <label for="format">Labelformaat</label>
+        <label class="lbl" for="format">Labelformaat</label>
         <select id="format"></select>
       </div>
-
       <div class="field">
-        <label for="sender">Afzender (klein onderaan)</label>
+        <label class="lbl" for="sender">Afzender (klein onderaan)</label>
         <input id="sender" type="text" value="Afzender: Anna Paulownastraat 1, 2316NM Leiden">
       </div>
-
-      <div class="field drop" id="drop">
-        <div class="row" style="justify-content:space-between">
-          <span class="lbl">Adressen</span>
-          <span class="row" style="gap:6px">
-            <span class="pill" id="samplePill">Voorbeeld</span>
-            <label class="btn small" for="file" style="text-transform:none;letter-spacing:0;font-size:13px;color:var(--fg)">Excel / CSV importeren</label>
-            <input class="file-in" id="file" type="file" accept=".xlsx,.xls,.csv,.ods,.txt">
-            <button class="btn small" id="clear" type="button">Wissen</button>
-          </span>
-        </div>
-        <textarea id="input" spellcheck="false" aria-label="Adressen, gescheiden door een lege regel"></textarea>
-        <p class="hint">Eén adres per blok, blokken gescheiden door een lege regel. Eén adres per regel kan ook, met tabs (geplakt uit Excel) of <code>;</code> tussen de velden. Je kunt een bestand ook hierheen slepen.</p>
-      </div>
-
       <div class="field">
-        <span class="lbl">Opties</span>
+        <span class="lbl">Opmaak</span>
         <label class="check"><input type="checkbox" id="postnl" checked> <span>Postcode en plaats in PostNL-notatie (<code>2316&nbsp;NM&nbsp;&nbsp;LEIDEN</code>)</span></label>
-        <label class="check"><input type="checkbox" id="bold"> Eerste regel (naam) vet</label>
-        <label class="check"><input type="checkbox" id="dropNL" checked> Land weglaten als het Nederland is</label>
-        <div class="row">
-          <label for="copies" class="check" style="flex:1">Aantal labels per adres</label>
-          <input id="copies" type="number" min="1" max="50" value="1" style="width:80px">
-        </div>
+        <label class="check"><input type="checkbox" id="bold"> <span>Naam vet</span></label>
+        <label class="check"><input type="checkbox" id="dropNL" checked> <span>Land weglaten als het Nederland is</span></label>
       </div>
-    </section>
-
-    <section class="panel" aria-label="Voorbeeld">
-      <div class="preview-head">
-        <div class="count" id="count">0 labels</div>
-        <div class="actions">
-          <button class="btn" id="pdf" type="button">PDF downloaden</button>
-          <button class="btn primary" id="print" type="button">Printen</button>
-        </div>
+      <div class="field">
+        <label class="lbl" for="copies">Labels per adres</label>
+        <input id="copies" type="number" min="1" max="50" value="1">
       </div>
-      <div class="status" id="status" role="status"></div>
-      <div class="roll" id="roll"></div>
       <details>
         <summary>Zo print je op de DYMO 550</summary>
         <ol>
-          <li>Plaats de juiste rol (bijv. 99010 voor standaard adreslabels) en kies hierboven hetzelfde formaat.</li>
-          <li>Klik <b>Printen</b> en kies als printer <b>DYMO LabelWriter 550</b>.</li>
-          <li>Zet marges op <b>Geen</b>, schaal op <b>100%</b> / <b>Werkelijke grootte</b>, en schakel kop- en voetteksten uit.</li>
-          <li>Kies bij papierformaat het labeltype van je rol (bijv. <i>99010 Address</i> of <i>30252 Address</i>) als de printer dat vraagt.</li>
-          <li>Liever via PDF? Download de PDF: elke pagina is precies één label. Print die op <b>Werkelijke grootte</b>.</li>
+          <li>Plaats de rol (bijv. 99010) en kies hetzelfde formaat hierboven.</li>
+          <li>Kies een tag om alleen die adressen te printen, of laat <b>Alle</b> aan.</li>
+          <li>Klik <b>Printen</b>, kies <b>DYMO LabelWriter 550</b>, marges <b>Geen</b>, schaal <b>100%</b>, geen kop- en voetteksten.</li>
+          <li>Of download de PDF: elke pagina is precies één label. Print op <b>Werkelijke grootte</b>.</li>
         </ol>
       </details>
+      <p class="hint">Je adressen worden in deze browser bewaard. Gebruik <b>Exporteren</b> voor een reservekopie (CSV voor Excel).</p>
+    </aside>
+
+    <section class="panel" aria-label="Adressen">
+      <div class="filters" id="filters" role="group" aria-label="Filter op tag"></div>
+      <div class="toolbar">
+        <input type="search" id="search" placeholder="Zoeken op naam, straat, plaats…" aria-label="Zoeken">
+        <label class="lbl" for="sort" style="margin-left:4px">Sorteren</label>
+        <select id="sort">
+          <option value="tag">Op tag</option>
+          <option value="name">Op naam</option>
+          <option value="city">Op plaats</option>
+          <option value="added">Volgorde van toevoegen</option>
+        </select>
+        <span class="spacer"></span>
+        <span class="count" id="count"></span>
+        <button class="btn" id="pdf" type="button">PDF</button>
+        <button class="btn primary" id="print" type="button">Printen</button>
+      </div>
+      <div class="status" id="status" role="status"></div>
+      <div class="book" id="book"></div>
     </section>
   </main>
 </div>
+
+<dialog id="editDlg" aria-labelledby="editTitle">
+  <form id="editForm" novalidate>
+    <div class="dlg-head">
+      <h2 id="editTitle">Adres toevoegen</h2>
+      <button class="btn small" type="button" data-close>Sluiten</button>
+    </div>
+    <div class="field">
+      <label class="lbl" for="fName">Naam</label>
+      <input id="fName" type="text" autocomplete="off" placeholder="Bijv. Jim en Maud">
+    </div>
+    <div class="field">
+      <label class="lbl" for="fAddr">Adres</label>
+      <textarea id="fAddr" rows="4" placeholder="Oude Singel 144&#10;2312 RG Leiden"></textarea>
+      <p class="hint">Elke regel wordt een regel op het label. Bij buitenland het land op de laatste regel.</p>
+    </div>
+    <div class="field">
+      <label class="lbl" for="fTagInput">Tags <span style="text-transform:none;letter-spacing:0">(worden niet geprint)</span></label>
+      <div class="tagbox" id="tagbox">
+        <input id="fTagInput" type="text" autocomplete="off" placeholder="Typ een tag en druk op Enter">
+      </div>
+      <div class="suggest" id="suggest"></div>
+    </div>
+    <div class="dlg-preview" id="dlgPreview" aria-label="Voorbeeld van het label"></div>
+    <div class="dlg-actions">
+      <button class="btn danger" type="button" id="del">Verwijderen</button>
+      <span class="spacer"></span>
+      <button class="btn" type="button" data-close>Annuleren</button>
+      <button class="btn primary" type="submit" id="save">Opslaan</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="importDlg" aria-labelledby="importTitle">
+  <form id="importForm" novalidate>
+    <div class="dlg-head">
+      <h2 id="importTitle">Lijst importeren</h2>
+      <button class="btn small" type="button" data-close>Sluiten</button>
+    </div>
+    <div class="field">
+      <div class="row">
+        <label class="lbl" for="importText">Plak adressen</label>
+        <span class="spacer"></span>
+        <label class="btn small" for="file">Excel / CSV kiezen</label>
+        <input class="file-in" id="file" type="file" accept=".xlsx,.xls,.csv,.ods,.txt">
+      </div>
+      <textarea id="importText" rows="10" placeholder="Jim en Maud&#10;Oude Singel 144&#10;2312 RG Leiden&#10;&#10;Daan&#10;Gortestraat 80&#10;2311 NM Leiden"></textarea>
+      <p class="hint">Eén adres per blok met een lege regel ertussen, of cellen geplakt uit Excel. Een Excel-kolom <code>Tags</code> wordt ook overgenomen.</p>
+    </div>
+    <div class="field">
+      <label class="lbl" for="importTag">Tag voor deze adressen (optioneel)</label>
+      <input id="importTag" type="text" placeholder="Bijv. Kerstkaart 2026">
+    </div>
+    <div class="status" id="importStatus"></div>
+    <div class="dlg-actions">
+      <span class="spacer"></span>
+      <button class="btn" type="button" data-close>Annuleren</button>
+      <button class="btn primary" type="submit" id="importGo">Toevoegen</button>
+    </div>
+  </form>
+</dialog>
+
 <div id="printArea" aria-hidden="true"></div>
 
 <script>
 (() => {
+  // Startgegevens als er nog niets in deze browser bewaard is.
+  const SEED = [
+    { name: "Familie de Vries", lines: ["Breestraat 12", "2311 CH Leiden"], tags: ["Voorbeeld"] },
+    { name: "Bakkerij Het Korenschoof", lines: ["T.a.v. mevrouw J. Jansen", "Nieuwe Rijn 45a", "2312 JE Leiden"], tags: ["Voorbeeld", "Zakelijk"] },
+    { name: "Dhr. P. van den Berg", lines: ["Kerkstraat 7 bis", "1017 GA Amsterdam"], tags: ["Voorbeeld"] },
+  ];
+  const STORE_PREFIX = "dymo.v2.";
+
   // DYMO LabelWriter labels die de 550 ondersteunt (alleen originele DYMO-rollen werken op de 550).
   const FORMATS = [
     { id: "99010", name: "99010 – Standaard adres", w: 89, h: 28, max: 12 },
@@ -190,31 +322,19 @@ details ol { padding-left: 20px; margin: 8px 0 0; display: grid; gap: 4px; }
     { id: "99014", name: "99014 – Verzending", w: 101, h: 54, max: 18 },
     { id: "11354", name: "11354 – Multifunctioneel", w: 57, h: 32, max: 11 },
   ];
-  const SAMPLE = [
-    "Familie de Vries",
-    "Breestraat 12",
-    "2311 CH Leiden",
-    "",
-    "Bakkerij Het Korenschoof",
-    "T.a.v. mevrouw J. Jansen",
-    "Nieuwe Rijn 45a",
-    "2312 JE Leiden",
-    "",
-    "Dhr. P. van den Berg",
-    "Kerkstraat 7 bis",
-    "1017 GA Amsterdam",
-  ].join("\n");
-
   const PT = 25.4 / 72;          // 1 pt in mm
   const FONT = "Helvetica, Arial, sans-serif";
   const SENDER_PT = 6;
   const $ = (id) => document.getElementById(id);
   const els = {
-    format: $("format"), sender: $("sender"), input: $("input"), file: $("file"),
-    clear: $("clear"), postnl: $("postnl"), bold: $("bold"), dropNL: $("dropNL"),
-    copies: $("copies"), roll: $("roll"), count: $("count"), print: $("print"),
-    pdf: $("pdf"), status: $("status"), printArea: $("printArea"), drop: $("drop"),
-    samplePill: $("samplePill"),
+    format: $("format"), sender: $("sender"), postnl: $("postnl"), bold: $("bold"), dropNL: $("dropNL"),
+    copies: $("copies"), book: $("book"), filters: $("filters"), search: $("search"), sort: $("sort"),
+    count: $("count"), print: $("print"), pdf: $("pdf"), status: $("status"), printArea: $("printArea"),
+    add: $("add"), openImport: $("openImport"), export: $("export"),
+    editDlg: $("editDlg"), editForm: $("editForm"), editTitle: $("editTitle"), fName: $("fName"), fAddr: $("fAddr"),
+    tagbox: $("tagbox"), fTagInput: $("fTagInput"), suggest: $("suggest"), dlgPreview: $("dlgPreview"), del: $("del"),
+    importDlg: $("importDlg"), importForm: $("importForm"), importText: $("importText"), importTag: $("importTag"),
+    importStatus: $("importStatus"), file: $("file"),
   };
 
   FORMATS.forEach((f) => {
@@ -223,19 +343,25 @@ details ol { padding-left: 20px; margin: 8px 0 0; display: grid; gap: 4px; }
     els.format.append(o);
   });
 
-  // ---------- opslag (alleen gemak, mag falen) ----------
+  // ---------- opslag ----------
   const store = {
-    get(k) { try { return localStorage.getItem("dymo." + k); } catch { return null; } },
-    set(k, v) { try { localStorage.setItem("dymo." + k, v); } catch {} },
+    get(k) { try { return localStorage.getItem(STORE_PREFIX + k); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem(STORE_PREFIX + k, v); } catch {} },
   };
-  const saved = {
-    format: store.get("format"), sender: store.get("sender"), input: store.get("input"),
-    postnl: store.get("postnl"), bold: store.get("bold"), dropNL: store.get("dropNL"),
-  };
-  if (saved.format && FORMATS.some((f) => f.id === saved.format)) els.format.value = saved.format;
-  if (saved.sender !== null) els.sender.value = saved.sender;
-  els.input.value = saved.input !== null ? saved.input : SAMPLE;
-  ["postnl", "bold", "dropNL"].forEach((k) => { if (saved[k] !== null) els[k].checked = saved[k] === "1"; });
+  const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+  const clean = (a) => ({ id: a.id || uid(), name: String(a.name || "").trim(), lines: (a.lines || []).map((l) => String(l).trim()).filter(Boolean), tags: [...new Set((a.tags || []).map((t) => String(t).trim()).filter(Boolean))] });
+
+  let book;
+  try { book = JSON.parse(store.get("book") || "null"); } catch { book = null; }
+  book = Array.isArray(book) ? book.map(clean) : SEED.map(clean);
+  const saveBook = () => store.set("book", JSON.stringify(book));
+
+  const saved = (k) => store.get(k);
+  if (saved("format") && FORMATS.some((f) => f.id === saved("format"))) els.format.value = saved("format");
+  if (saved("sender") !== null) els.sender.value = saved("sender");
+  ["postnl", "bold", "dropNL"].forEach((k) => { if (saved(k) !== null) els[k].checked = saved(k) === "1"; });
+  if (saved("sort")) els.sort.value = saved("sort");
+  let filter = "all";
 
   // ---------- parsen ----------
   const RE_PC_ONLY = /^(\d{4})\s?([a-z]{2})$/i;
@@ -283,10 +409,11 @@ details ol { padding-left: 20px; margin: 8px 0 0; display: grid; gap: 4px; }
   }
 
   function formatLines(lines) {
-    let out = lines.slice();
+    let out = lines.filter(Boolean);
     if (els.dropNL.checked && out.length > 1 && RE_COUNTRY_NL.test(out[out.length - 1])) out.pop();
     if (els.postnl.checked) {
-      out = out.map((l) => {
+      out = out.map((l, i) => {
+        if (i === 0) return l;                                // naam nooit aanpassen
         const m = l.match(RE_PC_LINE);
         if (!m || !m[3]) return m ? `${m[1]} ${m[2].toUpperCase()}` : l;
         return `${m[1]} ${m[2].toUpperCase()}  ${m[3].toUpperCase()}`;
@@ -304,26 +431,28 @@ details ol { padding-left: 20px; margin: 8px 0 0; display: grid; gap: 4px; }
     middle: /^(tussenvoegsel|tussenv)$/,
     last: /^(achternaam|lastname|surname)$/,
     name: /^(naam|name|volledigenaam|contactpersoon|ontvanger)$/,
-    street: /^(straat|straatnaam|adres|address|street|adresregel1|adres1)$/,
-    street2: /^(adresregel2|adres2)$/,
+    street: /^(straat|straatnaam|adres|address|street)$/,
     number: /^(huisnummer|huisnr|nr|nummer|number|no)$/,
     suffix: /^(toevoeging|toev|huisnummertoevoeging)$/,
     postcode: /^(postcode|zip|zipcode|postalcode)$/,
     city: /^(plaats|woonplaats|stad|city|plaatsnaam)$/,
     country: /^(land|country)$/,
+    tags: /^(tags?|groep|groepen|labels?|categorie|categorieen)$/,
   };
   const norm = (s) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const splitTags = (s) => String(s || "").split(/[,;|]/).map((t) => t.trim()).filter(Boolean);
 
-  function rowsToBlocks(rows) {
+  // geeft [{ lines, tags }] terug; lines[0] is de naam
+  function rowsToEntries(rows) {
     rows = rows.filter((r) => r && r.some((c) => String(c ?? "").trim()));
     if (!rows.length) return [];
-    const map = {};
+    const map = {}, lineCols = [];
     rows[0].forEach((h, i) => {
       const n = norm(h);
+      if (/^(adresregel|regel|adres)\d+$/.test(n)) { lineCols.push(i); return; }
       for (const [k, re] of Object.entries(HEAD)) if (!(k in map) && re.test(n)) { map[k] = i; break; }
     });
-    const hasHeader = Object.keys(map).length >= 2;
-    if (!hasHeader) return rows.map(rowToLines);
+    if (Object.keys(map).length + lineCols.length < 2) return rows.map((r) => ({ lines: rowToLines(r), tags: [] }));
     const get = (r, k) => (k in map ? String(r[map[k]] ?? "").trim() : "");
     return rows.slice(1).map((r) => {
       const lines = [];
@@ -333,40 +462,14 @@ details ol { padding-left: 20px; margin: 8px 0 0; display: grid; gap: 4px; }
       if (company) lines.push(company);
       if (tav) lines.push(/^t\.?a\.?v/i.test(tav) ? tav : "T.a.v. " + tav);
       if (person) lines.push(company && !tav ? "T.a.v. " + person : person);
-      const street = [get(r, "street"), get(r, "number"), get(r, "suffix")].filter(Boolean).join(" ").replace(/\s+(-)/, "$1");
+      const street = [get(r, "street"), get(r, "number"), get(r, "suffix")].filter(Boolean).join(" ");
       if (street) lines.push(street);
-      if (get(r, "street2")) lines.push(get(r, "street2"));
+      lineCols.forEach((i) => { const v = String(r[i] ?? "").trim(); if (v) lines.push(v); });
       const pc = [get(r, "postcode"), get(r, "city")].filter(Boolean).join(" ");
       if (pc) lines.push(pc);
       if (get(r, "country")) lines.push(get(r, "country"));
-      return lines;
-    }).filter((l) => l.length);
-  }
-
-  function blocksToText(blocks) { return blocks.map((b) => b.join("\n")).join("\n\n"); }
-
-  async function importFile(file) {
-    const name = file.name.toLowerCase();
-    try {
-      let rows;
-      if (/\.(csv|txt)$/.test(name)) {
-        const text = await file.text();
-        const delim = (text.match(/;/g) || []).length > (text.match(/,/g) || []).length ? ";" : (text.includes("\t") ? "\t" : ",");
-        rows = text.replace(/\r/g, "").split("\n").map((l) => splitCSV(l, delim));
-      } else {
-        if (!window.XLSX) throw new Error("De Excel-lezer kon niet laden (geen internet?). Sla het bestand op als CSV of kopieer de cellen en plak ze in het tekstvak.");
-        const wb = XLSX.read(await file.arrayBuffer(), { type: "array" });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: "" });
-      }
-      const blocks = rowsToBlocks(rows);
-      if (!blocks.length) throw new Error("Geen adressen gevonden in " + file.name + ".");
-      els.input.value = blocksToText(blocks);
-      setStatus(`${blocks.length} adressen geïmporteerd uit ${file.name}. Controleer ze in het tekstvak.`);
-      update();
-    } catch (e) {
-      setStatus(e.message, true);
-    }
+      return { lines, tags: splitTags(get(r, "tags")) };
+    }).filter((e) => e.lines.length);
   }
 
   function splitCSV(line, d) {
@@ -380,6 +483,22 @@ details ol { padding-left: 20px; margin: 8px 0 0; display: grid; gap: 4px; }
     }
     out.push(cur);
     return out;
+  }
+
+  let pendingFileEntries = null;
+  async function readFile(file) {
+    const name = file.name.toLowerCase();
+    let rows;
+    if (/\.(csv|txt)$/.test(name)) {
+      const text = (await file.text()).replace(/^﻿/, "").replace(/^sep=.\r?\n/, "");
+      const delim = (text.match(/;/g) || []).length > (text.match(/,/g) || []).length ? ";" : (text.includes("\t") ? "\t" : ",");
+      rows = text.replace(/\r/g, "").split("\n").map((l) => splitCSV(l, delim));
+    } else {
+      if (!window.XLSX) throw new Error("De Excel-lezer kon niet laden (geen internet?). Sla het bestand op als CSV, of kopieer de cellen en plak ze hier.");
+      const wb = XLSX.read(await file.arrayBuffer(), { type: "array" });
+      rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false, defval: "" });
+    }
+    return rowsToEntries(rows);
   }
 
   // ---------- opmaak van een label ----------
@@ -400,127 +519,301 @@ details ol { padding-left: 20px; margin: 8px 0 0; display: grid; gap: 4px; }
     const fits = (p) => lines.every((l, i) => textWidthMM(l, p, bold && i === 0) <= innerW) && lines.length * p * PT * LH <= areaH;
     while (pt > 5 && !fits(pt)) pt -= 0.25;
     const lh = pt * PT * LH;
-    const blockH = lines.length * lh;
-    const top = areaTop + Math.max(0, (areaH - blockH) / 2);
+    const top = areaTop + Math.max(0, (areaH - lines.length * lh) / 2);
     const rows = lines.map((t, i) => ({ t, x: padX, y: top + i * lh + pt * PT * 0.86 + (lh - pt * PT) / 2, bold: bold && i === 0 }));
     let senderPt = SENDER_PT;
     while (senderPt > 4 && textWidthMM(sender, senderPt, false) > innerW) senderPt -= 0.25;
-    return {
-      pt, rows, ok: fits(pt), padX,
-      sender: sender ? { t: sender, x: padX, y: fmt.h - padY - 0.2, pt: senderPt } : null,
-    };
+    return { pt, rows, ok: fits(pt), sender: sender ? { t: sender, x: padX, y: fmt.h - padY - 0.2, pt: senderPt } : null };
   }
 
-  const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   function svgFor(L, fmt, forPrint) {
     const size = forPrint ? `width="${fmt.w}mm" height="${fmt.h}mm"` : "";
-    let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${fmt.w} ${fmt.h}" ${size} role="img" font-family="${FONT}">`;
-    if (forPrint) s += `<rect width="${fmt.w}" height="${fmt.h}" fill="#fff"/>`;
+    let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${fmt.w} ${fmt.h}" ${size} font-family="${FONT}" aria-hidden="true">`;
+    s += `<rect width="${fmt.w}" height="${fmt.h}" fill="#fff"/>`;
     for (const r of L.rows) {
       s += `<text x="${r.x.toFixed(2)}" y="${r.y.toFixed(2)}" font-size="${(L.pt * PT).toFixed(3)}" fill="#111"${r.bold ? ' font-weight="bold"' : ""} xml:space="preserve">${esc(r.t)}</text>`;
     }
-    if (L.sender) {
-      s += `<text x="${L.sender.x.toFixed(2)}" y="${L.sender.y.toFixed(2)}" font-size="${(L.sender.pt * PT).toFixed(3)}" fill="#333" xml:space="preserve">${esc(L.sender.t)}</text>`;
-    }
+    if (L.sender) s += `<text x="${L.sender.x.toFixed(2)}" y="${L.sender.y.toFixed(2)}" font-size="${(L.sender.pt * PT).toFixed(3)}" fill="#333" xml:space="preserve">${esc(L.sender.t)}</text>`;
     return s + "</svg>";
   }
 
+  const fmt = () => FORMATS.find((f) => f.id === els.format.value) || FORMATS[0];
+  const labelLines = (a) => formatLines([a.name, ...a.lines]);
+
+  // ---------- tags ----------
+  function hue(tag) { let h = 0; for (const ch of tag.toLowerCase()) h = (h * 31 + ch.charCodeAt(0)) % 360; return (h * 7 + 200) % 360; }
+  const tagHTML = (t, extra = "") => `<span class="tag" style="--h:${hue(t)}">${esc(t)}${extra}</span>`;
+  function allTags() {
+    const m = new Map();
+    book.forEach((a) => a.tags.forEach((t) => m.set(t, (m.get(t) || 0) + 1)));
+    return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0], "nl"));
+  }
+
+  // ---------- sorteren & filteren ----------
+  const collator = new Intl.Collator("nl", { sensitivity: "base", numeric: true });
+  function cityOf(a) {
+    for (let i = a.lines.length - 1; i >= 0; i--) { const m = a.lines[i].match(RE_PC_LINE); if (m && m[3]) return m[3]; }
+    return a.lines[a.lines.length - 1] || "";
+  }
+  function visible() {
+    const q = els.search.value.trim().toLowerCase();
+    let list = book.filter((a) => filter === "all" || (filter === "__none" ? !a.tags.length : a.tags.includes(filter)));
+    if (q) list = list.filter((a) => [a.name, ...a.lines, ...a.tags].join(" ").toLowerCase().includes(q));
+    const s = els.sort.value;
+    if (s === "name") list = list.slice().sort((a, b) => collator.compare(a.name, b.name));
+    if (s === "city") list = list.slice().sort((a, b) => collator.compare(cityOf(a), cityOf(b)) || collator.compare(a.name, b.name));
+    return list;
+  }
+  // groepen voor "op tag": een adres staat bij elke tag die het heeft, zodat de tellingen kloppen
+  function groupsFor(list) {
+    if (els.sort.value !== "tag") return [{ title: null, items: list }];
+    const tagNames = filter !== "all" && filter !== "__none" ? [filter] : allTags().map(([t]) => t);
+    const groups = tagNames.map((t) => ({ title: t, items: list.filter((a) => a.tags.includes(t)).sort((a, b) => collator.compare(a.name, b.name)) }));
+    const none = list.filter((a) => !a.tags.length).sort((a, b) => collator.compare(a.name, b.name));
+    if (none.length) groups.push({ title: "", items: none });
+    return groups.filter((g) => g.items.length);
+  }
+
   // ---------- render ----------
-  let current = [];
-  function fmt() { return FORMATS.find((f) => f.id === els.format.value) || FORMATS[0]; }
-
-  function update() {
-    const f = fmt();
-    const sender = els.sender.value.trim();
-    const copies = Math.max(1, Math.min(50, parseInt(els.copies.value, 10) || 1));
-    const addresses = parseText(els.input.value).map(formatLines).filter((l) => l.length);
-    current = [];
-    addresses.forEach((lines) => { for (let i = 0; i < copies; i++) current.push(lines); });
-
+  function render() {
+    const f = fmt(), sender = els.sender.value.trim();
     $("pageSize").textContent = `@page { size: ${f.w}mm ${f.h}mm; margin: 0; }`;
-    els.samplePill.hidden = els.input.value.trim() !== SAMPLE.trim();
 
+    const tags = allTags();
+    const untagged = book.filter((a) => !a.tags.length).length;
+    if (filter !== "all" && filter !== "__none" && !tags.some(([t]) => t === filter)) filter = "all";
+    if (filter === "__none" && !untagged) filter = "all";
+    const chip = (key, label, n, h) => `<button type="button" class="chip" data-filter="${esc(key)}" aria-pressed="${filter === key}"${h != null ? ` style="--h:${h}"` : ""}>${h != null ? '<span class="dot"></span>' : ""}${esc(label)} <span class="n">${n}</span></button>`;
+    els.filters.innerHTML = chip("all", "Alle", book.length) + tags.map(([t, n]) => chip(t, t, n, hue(t))).join("") + (untagged ? chip("__none", "Zonder tag", untagged) : "");
+
+    const list = visible();
+    const copies = Math.max(1, Math.min(50, parseInt(els.copies.value, 10) || 1));
     let warn = 0;
-    const html = addresses.map((lines, i) => {
-      const L = layout(lines, f, sender);
+    const card = (a) => {
+      const L = layout(labelLines(a), f, sender);
       if (!L.ok) warn++;
-      return `<div class="lab"><div style="aspect-ratio:${f.w}/${f.h}">${svgFor(L, f, false)}</div>
-        <div class="meta"><span>#${i + 1}</span>${L.ok ? `<span>${L.pt.toFixed(1)} pt</span>` : `<span class="pill">Te lang, wordt afgekapt</span>`}</div></div>`;
-    }).join("");
-    els.roll.innerHTML = html || `<div class="empty">Nog geen adressen. Plak ze links in het tekstvak of importeer een Excel-bestand.</div>`;
-    const n = current.length;
-    els.count.textContent = `${addresses.length} ${addresses.length === 1 ? "adres" : "adressen"} · ${n} ${n === 1 ? "label" : "labels"}`;
+      return `<button type="button" class="card" data-id="${a.id}" aria-label="${esc(a.name || a.lines[0] || "Adres")} wijzigen">
+        <div class="sheet">${svgFor(L, f, false)}</div>
+        <div class="foot">${a.tags.map((t) => tagHTML(t)).join("")}${!a.lines.length ? '<span class="pill">Geen adres, wordt niet geprint</span>' : L.ok ? "" : '<span class="pill">Te lang</span>'}<span class="edit">Wijzigen</span></div>
+      </button>`;
+    };
+    if (!book.length) {
+      els.book.innerHTML = `<div class="empty"><span>Nog geen adressen.</span><button class="btn primary" type="button" data-action="add">+ Adres toevoegen</button></div>`;
+    } else if (!list.length) {
+      els.book.innerHTML = `<div class="empty">Geen adressen gevonden met dit filter.</div>`;
+    } else {
+      els.book.innerHTML = groupsFor(list).map((g) => `<section class="group">
+        ${g.title === null ? "" : `<div class="group-head">${g.title ? tagHTML(g.title) : '<span class="tag untagged">Zonder tag</span>'}<span class="n">${g.items.length}</span></div>`}
+        <div class="grid">${g.items.map(card).join("")}</div></section>`).join("");
+    }
+
+    const n = list.filter((a) => a.lines.length).length * copies;
+    els.count.textContent = `${list.length} ${list.length === 1 ? "adres" : "adressen"}${copies > 1 ? ` · ${n} labels` : ""}`;
+    els.print.textContent = n ? `${n} ${n === 1 ? "label" : "labels"} printen` : "Printen";
     els.print.disabled = els.pdf.disabled = n === 0;
-    if (warn) setStatus(`${warn} ${warn === 1 ? "label heeft" : "labels hebben"} een regel die te lang is. Kort die regel in of kies een groter label.`, true);
+    if (warn) setStatus(`${warn} ${warn === 1 ? "adres heeft" : "adressen hebben"} een regel die niet past. Kort die in of kies een groter label.`, true);
     else if (els.status.dataset.err) setStatus("");
 
-    store.set("format", f.id); store.set("sender", els.sender.value); store.set("input", els.input.value);
+    store.set("format", f.id); store.set("sender", els.sender.value); store.set("sort", els.sort.value);
     ["postnl", "bold", "dropNL"].forEach((k) => store.set(k, els[k].checked ? "1" : "0"));
   }
 
+  let statusTimer;
   function setStatus(msg, err) {
+    clearTimeout(statusTimer);
     els.status.textContent = msg;
     els.status.style.color = err ? "var(--warn)" : "";
-    if (err) els.status.dataset.err = "1"; else delete els.status.dataset.err;
+    if (err) els.status.dataset.err = "1"; else { delete els.status.dataset.err; if (msg) statusTimer = setTimeout(() => setStatus(""), 4000); }
   }
 
+  // ---------- pop-up: adres toevoegen / wijzigen ----------
+  let editing = null, draftTags = [];
+  function openEdit(a) {
+    editing = a || null;
+    els.editTitle.textContent = a ? "Adres wijzigen" : "Adres toevoegen";
+    els.fName.value = a ? a.name : "";
+    els.fAddr.value = a ? a.lines.join("\n") : "";
+    draftTags = a ? a.tags.slice() : (filter !== "all" && filter !== "__none" ? [filter] : []);
+    els.fTagInput.value = "";
+    els.del.hidden = !a;
+    disarm();
+    renderTags(); renderPreview();
+    els.editDlg.showModal();
+    (a ? els.fAddr : els.fName).focus();
+  }
+  function renderTags() {
+    els.tagbox.querySelectorAll(".tag").forEach((n) => n.remove());
+    draftTags.forEach((t, i) => {
+      const span = document.createElement("span");
+      span.className = "tag"; span.style.setProperty("--h", hue(t)); span.textContent = t;
+      const x = document.createElement("button");
+      x.type = "button"; x.className = "x"; x.textContent = "×"; x.setAttribute("aria-label", `Tag ${t} verwijderen`);
+      x.addEventListener("click", () => { draftTags.splice(i, 1); renderTags(); els.fTagInput.focus(); });
+      span.append(x);
+      els.tagbox.insertBefore(span, els.fTagInput);
+    });
+    const q = els.fTagInput.value.trim().toLowerCase();
+    const sug = allTags().map(([t]) => t).filter((t) => !draftTags.includes(t) && (!q || t.toLowerCase().includes(q)));
+    els.suggest.innerHTML = sug.length ? `<span class="hint">Bestaande tags:</span>` + sug.map((t) => `<button type="button" class="tag" data-tag="${esc(t)}" style="--h:${hue(t)}">+ ${esc(t)}</button>`).join("") : "";
+  }
+  function addDraftTag(t) {
+    t = t.trim().replace(/,$/, "").trim();
+    if (!t) return;
+    const existing = allTags().map(([x]) => x).find((x) => x.toLowerCase() === t.toLowerCase());
+    t = existing || t;
+    if (!draftTags.includes(t)) draftTags.push(t);
+    els.fTagInput.value = "";
+    renderTags();
+  }
+  function renderPreview() {
+    const lines = formatLines([els.fName.value.trim(), ...els.fAddr.value.split("\n").map((l) => l.trim())]);
+    const L = layout(lines.length ? lines : [" "], fmt(), els.sender.value.trim());
+    els.dlgPreview.innerHTML = svgFor(L, fmt(), false) + (L.ok ? "" : '<p class="hint" style="color:var(--warn);margin-top:8px">Een regel is te lang voor dit label en wordt afgekapt.</p>');
+  }
+  let armTimer;
+  function disarm() { clearTimeout(armTimer); els.del.classList.remove("armed"); els.del.textContent = "Verwijderen"; }
+
+  els.fTagInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addDraftTag(els.fTagInput.value); }
+    else if (e.key === "Backspace" && !els.fTagInput.value && draftTags.length) { draftTags.pop(); renderTags(); }
+  });
+  els.fTagInput.addEventListener("input", renderTags);
+  els.fTagInput.addEventListener("blur", () => { if (els.fTagInput.value.trim()) addDraftTag(els.fTagInput.value); });
+  els.tagbox.addEventListener("click", (e) => { if (e.target === els.tagbox) els.fTagInput.focus(); });
+  els.suggest.addEventListener("click", (e) => { const b = e.target.closest("[data-tag]"); if (b) { addDraftTag(b.dataset.tag); els.fTagInput.focus(); } });
+  [els.fName, els.fAddr].forEach((el) => el.addEventListener("input", renderPreview));
+  els.fAddr.addEventListener("paste", (e) => {
+    // een heel adres in het adresveld geplakt terwijl de naam nog leeg is: eerste regel wordt de naam
+    const t = (e.clipboardData || window.clipboardData).getData("text");
+    if (els.fName.value.trim() || els.fAddr.value.trim() || !t.includes("\n")) return;
+    const lines = t.replace(/\r/g, "").split("\n").map((l) => l.trim()).filter(Boolean);
+    if (lines.length < 3) return;
+    e.preventDefault();
+    els.fName.value = lines.shift(); els.fAddr.value = lines.join("\n"); renderPreview();
+  });
+
+  els.editForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (els.fTagInput.value.trim()) addDraftTag(els.fTagInput.value);
+    const entry = clean({ id: editing?.id, name: els.fName.value, lines: els.fAddr.value.split("\n"), tags: draftTags });
+    if (!entry.name && !entry.lines.length) { els.fName.focus(); return; }
+    if (editing) Object.assign(editing, entry); else book.push(entry);
+    saveBook(); els.editDlg.close(); render();
+    setStatus(editing ? `${entry.name || "Adres"} opgeslagen.` : `${entry.name || "Adres"} toegevoegd.`);
+  });
+  els.del.addEventListener("click", () => {
+    if (!els.del.classList.contains("armed")) {
+      els.del.classList.add("armed"); els.del.textContent = "Nogmaals klikken om te verwijderen";
+      armTimer = setTimeout(disarm, 3000);
+      return;
+    }
+    book = book.filter((a) => a !== editing);
+    saveBook(); els.editDlg.close(); render();
+    setStatus(`${editing.name || "Adres"} verwijderd.`);
+  });
+
+  // ---------- pop-up: importeren ----------
+  function openImport() {
+    els.importText.value = ""; els.importTag.value = filter !== "all" && filter !== "__none" ? filter : "";
+    els.importStatus.textContent = ""; pendingFileEntries = null;
+    els.importDlg.showModal(); els.importText.focus();
+  }
+  els.file.addEventListener("change", async () => {
+    const file = els.file.files[0]; els.file.value = "";
+    if (!file) return;
+    try {
+      pendingFileEntries = await readFile(file);
+      if (!pendingFileEntries.length) throw new Error("Geen adressen gevonden in " + file.name + ".");
+      els.importText.value = pendingFileEntries.map((x) => x.lines.join("\n")).join("\n\n");
+      els.importStatus.style.color = "";
+      els.importStatus.textContent = `${pendingFileEntries.length} adressen gelezen uit ${file.name}. Controleer ze en klik op Toevoegen.`;
+    } catch (err) { els.importStatus.style.color = "var(--warn)"; els.importStatus.textContent = err.message; }
+  });
+  els.importText.addEventListener("input", () => { pendingFileEntries = null; });
+  els.importForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const extra = splitTags(els.importTag.value);
+    const entries = pendingFileEntries || parseText(els.importText.value).map((lines) => ({ lines, tags: [] }));
+    const added = entries.filter((x) => x.lines.length).map((x) => clean({ name: x.lines[0], lines: x.lines.slice(1), tags: [...x.tags, ...extra] }));
+    if (!added.length) { els.importStatus.style.color = "var(--warn)"; els.importStatus.textContent = "Er staan nog geen adressen in het vak."; return; }
+    book.push(...added); saveBook(); els.importDlg.close(); render();
+    setStatus(`${added.length} adressen toegevoegd.`);
+  });
+
+  // ---------- exporteren ----------
+  function exportCSV() {
+    const max = Math.max(1, ...book.map((a) => a.lines.length));
+    const head = ["Naam", ...Array.from({ length: max }, (_, i) => `Adresregel ${i + 1}`), "Tags"];
+    const q = (v) => /[";\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+    const rows = [head, ...book.map((a) => [a.name, ...Array.from({ length: max }, (_, i) => a.lines[i] || ""), a.tags.join(", ")])];
+    const csv = "﻿" + rows.map((r) => r.map(q).join(";")).join("\r\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const link = Object.assign(document.createElement("a"), { href: url, download: `adressen-${new Date().toISOString().slice(0, 10)}.csv` });
+    document.body.append(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setStatus(`${book.length} adressen geëxporteerd.`);
+  }
+
+  // ---------- printen ----------
+  function printList() {
+    const copies = Math.max(1, Math.min(50, parseInt(els.copies.value, 10) || 1));
+    const out = [], seen = new Set();
+    const ordered = groupsFor(visible()).flatMap((g) => g.items).filter((a) => !seen.has(a) && seen.add(a));
+    ordered.filter((a) => a.lines.length).forEach((a) => { for (let i = 0; i < copies; i++) out.push(labelLines(a)); });
+    return out;
+  }
   function buildPrintArea() {
     const f = fmt(), sender = els.sender.value.trim();
-    els.printArea.innerHTML = current.map((lines) => svgFor(layout(lines, f, sender), f, true)).join("");
+    els.printArea.innerHTML = printList().map((lines) => svgFor(layout(lines, f, sender), f, true)).join("");
   }
-
-  function doPrint() {
-    if (!current.length) return;
-    buildPrintArea();
-    window.print();
-  }
-
   function doPDF() {
-    if (!current.length) return;
+    const labels = printList();
+    if (!labels.length) return;
     if (!window.jspdf) { setStatus("De PDF-maker kon niet laden (geen internet?). Gebruik Printen en kies daar 'Opslaan als PDF'.", true); return; }
     const f = fmt(), sender = els.sender.value.trim();
     const orient = f.w > f.h ? "landscape" : "portrait";
     const doc = new jspdf.jsPDF({ orientation: orient, unit: "mm", format: [f.w, f.h] });
-    current.forEach((lines, i) => {
+    labels.forEach((lines, i) => {
       if (i) doc.addPage([f.w, f.h], orient);
       const L = layout(lines, f, sender);
       doc.setTextColor(17, 17, 17);
-      L.rows.forEach((r) => {
-        doc.setFont("helvetica", r.bold ? "bold" : "normal");
-        doc.setFontSize(L.pt);
-        doc.text(r.t, r.x, r.y);
-      });
-      if (L.sender) {
-        doc.setFont("helvetica", "normal"); doc.setFontSize(L.sender.pt); doc.setTextColor(51, 51, 51);
-        doc.text(L.sender.t, L.sender.x, L.sender.y);
-      }
+      L.rows.forEach((r) => { doc.setFont("helvetica", r.bold ? "bold" : "normal"); doc.setFontSize(L.pt); doc.text(r.t, r.x, r.y); });
+      if (L.sender) { doc.setFont("helvetica", "normal"); doc.setFontSize(L.sender.pt); doc.setTextColor(51, 51, 51); doc.text(L.sender.t, L.sender.x, L.sender.y); }
     });
-    const stamp = new Date().toISOString().slice(0, 10);
-    doc.save(`adreslabels-${f.id}-${stamp}.pdf`);
-    setStatus(`PDF met ${current.length} labels gedownload.`);
+    const tagPart = filter !== "all" && filter !== "__none" ? "-" + filter.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "";
+    doc.save(`adreslabels${tagPart}-${f.id}-${new Date().toISOString().slice(0, 10)}.pdf`);
+    setStatus(`PDF met ${labels.length} labels gedownload.`);
   }
 
   // ---------- events ----------
-  ["input", "change"].forEach((ev) => {
-    [els.format, els.sender, els.input, els.postnl, els.bold, els.dropNL, els.copies].forEach((el) => el.addEventListener(ev, update));
+  [els.format, els.sender, els.postnl, els.bold, els.dropNL, els.copies, els.search, els.sort].forEach((el) => {
+    el.addEventListener("input", render); el.addEventListener("change", render);
   });
-  els.file.addEventListener("change", () => { if (els.file.files[0]) importFile(els.file.files[0]); els.file.value = ""; });
-  els.clear.addEventListener("click", () => { els.input.value = ""; update(); els.input.focus(); });
-  els.print.addEventListener("click", doPrint);
+  els.filters.addEventListener("click", (e) => { const b = e.target.closest("[data-filter]"); if (b) { filter = b.dataset.filter; render(); } });
+  els.book.addEventListener("click", (e) => {
+    if (e.target.closest("[data-action=add]")) return openEdit(null);
+    const c = e.target.closest(".card"); if (c) openEdit(book.find((a) => a.id === c.dataset.id));
+  });
+  els.add.addEventListener("click", () => openEdit(null));
+  els.openImport.addEventListener("click", openImport);
+  els.export.addEventListener("click", exportCSV);
+  els.print.addEventListener("click", () => { if (printList().length) { buildPrintArea(); window.print(); } });
   els.pdf.addEventListener("click", doPDF);
-  els.drop.addEventListener("dragover", (e) => { e.preventDefault(); els.drop.classList.add("over"); });
-  els.drop.addEventListener("dragleave", () => els.drop.classList.remove("over"));
-  els.drop.addEventListener("drop", (e) => {
-    els.drop.classList.remove("over");
-    const f = e.dataTransfer.files[0];
-    if (f) { e.preventDefault(); importFile(f); }
-  });
+  document.querySelectorAll("[data-close]").forEach((b) => b.addEventListener("click", () => b.closest("dialog").close()));
+  [els.editDlg, els.importDlg].forEach((d) => d.addEventListener("click", (e) => { if (e.target === d) d.close(); }));
   window.addEventListener("beforeprint", buildPrintArea);
 
   // hook voor scripts (bijv. automatisch PDF maken vanuit een lijst)
-  window.dymoLabels = { setText(t) { els.input.value = t; update(); }, setFormat(id) { els.format.value = id; update(); }, buildPrintArea, count: () => current.length };
+  window.dymoLabels = {
+    setText(t) { book = parseText(t).map((l) => clean({ name: l[0], lines: l.slice(1) })); filter = "all"; render(); },
+    setBook(b) { book = b.map(clean); filter = "all"; render(); },
+    setFilter(t) { filter = t; render(); },
+    setFormat(id) { els.format.value = id; render(); },
+    buildPrintArea, count: () => printList().length, openEdit: (i) => openEdit(book[i]),
+  };
 
-  update();
+  render();
 })();
 </script>
 </body>
