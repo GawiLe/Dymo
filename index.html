@@ -168,8 +168,9 @@ dialog form { display: grid; gap: 14px; padding: 20px; }
   html, body { background: #fff !important; padding: 0 !important; margin: 0 !important; }
   .wrap, dialog { display: none !important; }
   #printArea { display: block; }
-  #printArea svg { display: block; break-after: page; page-break-after: always; }
-  #printArea svg:last-child { break-after: auto; page-break-after: auto; }
+  #printArea .pg { overflow: hidden; break-after: page; page-break-after: always; break-inside: avoid; }
+  #printArea .pg:last-child { break-after: auto; page-break-after: auto; }
+  #printArea svg { display: block; }
 }
 </style>
 <style id="pageSize">@page { size: 89mm 28mm; margin: 0; }</style>
@@ -213,8 +214,11 @@ dialog form { display: grid; gap: 14px; padding: 20px; }
         <ol>
           <li>Plaats de rol (bijv. 99010) en kies hetzelfde formaat hierboven.</li>
           <li>Kies een tag om alleen die adressen te printen, of laat <b>Alle</b> aan.</li>
-          <li>Klik <b>Printen</b>, kies je <b>DYMO LabelWriter</b> (450 of 550), marges <b>Geen</b>, schaal <b>100%</b>, geen kop- en voetteksten.</li>
-          <li>Of download de PDF: elke pagina is precies één label. Print op <b>Werkelijke grootte</b>.</li>
+          <li>Klik <b>Printen</b> en kies je <b>DYMO LabelWriter</b> (450 of 550).</li>
+          <li>Zet <b>Papierformaat</b> op het label van je rol: <b>30252 Address</b> (= 99010), <b>30321 Large Address</b> (= 99012) of <b>30256 Shipping</b> (= 99014).</li>
+          <li>Zet <b>Richting</b> op <b>Liggend</b>, schaal op <b>100%</b> en zet <b>kop- en voetteksten</b> uit.</li>
+          <li>Op de Mac: bewaar dit via <b>Voorinstellingen → Bewaar huidige instellingen</b>, dan hoeft het maar één keer.</li>
+          <li>Lukt het niet? Download de PDF (één label per pagina), open die in Voorvertoning en print met dezelfde instellingen.</li>
         </ol>
       </details>
       <p class="hint">Je adressen worden in deze browser bewaard. Gebruik <b>Exporteren</b> voor een reservekopie (CSV voor Excel).</p>
@@ -765,7 +769,10 @@ dialog form { display: grid; gap: 14px; padding: 20px; }
   }
   function buildPrintArea() {
     const f = fmt(), sender = els.sender.value.trim();
-    els.printArea.innerHTML = printList().map((lines) => svgFor(layout(lines, f, sender), f, true)).join("");
+    // net iets kleiner dan het label, zodat de printermarge geen lege labels ertussen veroorzaakt
+    const h = f.h - 1.5, w = f.w * h / f.h;
+    els.printArea.innerHTML = printList().map((lines) =>
+      `<div class="pg" style="width:${w.toFixed(2)}mm;height:${h.toFixed(2)}mm">${svgFor(layout(lines, f, sender), f, true).replace(`width="${f.w}mm" height="${f.h}mm"`, `width="${w.toFixed(2)}mm" height="${h.toFixed(2)}mm"`)}</div>`).join("");
   }
   function doPDF() {
     const labels = printList();
