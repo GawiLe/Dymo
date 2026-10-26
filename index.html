@@ -214,11 +214,10 @@ dialog form { display: grid; gap: 14px; padding: 20px; }
         <ol>
           <li>Plaats de rol (bijv. 99010) en kies hetzelfde formaat hierboven.</li>
           <li>Kies een tag om alleen die adressen te printen, of laat <b>Alle</b> aan.</li>
-          <li>Klik <b>Printen</b> en kies je <b>DYMO LabelWriter</b> (450 of 550).</li>
-          <li>Zet <b>Papierformaat</b> op het label van je rol: <b>30252 Address</b> (= 99010), <b>30321 Large Address</b> (= 99012) of <b>30256 Shipping</b> (= 99014).</li>
-          <li>Zet <b>Richting</b> op <b>Liggend</b>, schaal op <b>100%</b> en zet <b>kop- en voetteksten</b> uit.</li>
-          <li>Op de Mac: bewaar dit via <b>Voorinstellingen → Bewaar huidige instellingen</b>, dan hoeft het maar één keer.</li>
-          <li>Lukt het niet? Download de PDF (één label per pagina), open die in Voorvertoning en print met dezelfde instellingen.</li>
+          <li><b>Mac (aanbevolen):</b> klik <b>PDF</b>, open de PDF in <b>Voorvertoning</b> en kies <b>Archief → Druk af</b>.</li>
+          <li>Kies je <b>DYMO LabelWriter</b>, <b>Papierformaat</b> <b>Adres</b> / <b>30252 Address</b> (= 99010), <b>Richting Liggend</b> en <b>Schaal tot passend</b> (Aanpassen).</li>
+          <li>Bewaar dit via <b>Voorinstellingen → Bewaar huidige instellingen</b>, dan hoeft het maar één keer.</li>
+          <li>Direct <b>Printen</b> vanuit de browser kan ook (zelfde instellingen, kop- en voetteksten uit), maar Safari zet de tekst dan iets kleiner.</li>
         </ol>
       </details>
       <p class="hint">Je adressen worden in deze browser bewaard. Gebruik <b>Exporteren</b> voor een reservekopie (CSV voor Excel).</p>
@@ -237,7 +236,7 @@ dialog form { display: grid; gap: 14px; padding: 20px; }
         </select>
         <span class="spacer"></span>
         <span class="count" id="count"></span>
-        <button class="btn" id="pdf" type="button">PDF</button>
+        <button class="btn" id="pdf" type="button" title="Beste resultaat op de Mac: open de PDF in Voorvertoning en print met Schaal tot passend">PDF</button>
         <button class="btn primary" id="print" type="button">Printen</button>
       </div>
       <div class="status" id="status" role="status"></div>
@@ -513,7 +512,7 @@ dialog form { display: grid; gap: 14px; padding: 20px; }
   }
 
   function layout(lines, fmt, sender) {
-    const padX = fmt.w >= 80 ? 4 : 3, padY = 2;
+    const padX = fmt.w >= 80 ? 5 : 3.5, padY = 2;   // links ruim: de DYMO print niet tot de rand
     const innerW = fmt.w - padX * 2;
     const senderH = sender ? SENDER_PT * PT * 1.2 + 1 : 0;
     const areaTop = padY, areaH = fmt.h - padY * 2 - senderH;
@@ -769,8 +768,8 @@ dialog form { display: grid; gap: 14px; padding: 20px; }
   }
   function buildPrintArea() {
     const f = fmt(), sender = els.sender.value.trim();
-    // net iets kleiner dan het label, zodat de printermarge geen lege labels ertussen veroorzaakt
-    const h = f.h - 1.5, w = f.w * h / f.h;
+    // kleiner dan het label: de browser deelt pagina's in op het printbare deel, en dat is kleiner dan het label zelf
+    const h = f.h - 5, w = f.w * h / f.h;
     els.printArea.innerHTML = printList().map((lines) =>
       `<div class="pg" style="width:${w.toFixed(2)}mm;height:${h.toFixed(2)}mm">${svgFor(layout(lines, f, sender), f, true).replace(`width="${f.w}mm" height="${f.h}mm"`, `width="${w.toFixed(2)}mm" height="${h.toFixed(2)}mm"`)}</div>`).join("");
   }
