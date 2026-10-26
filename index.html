@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Adreslabels DYMO 550</title>
+<title>Adreslabels DYMO</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -178,7 +178,7 @@ dialog form { display: grid; gap: 14px; padding: 20px; }
 <div class="wrap">
   <header>
     <div>
-      <h1>Adreslabels <small>DYMO LabelWriter 550</small></h1>
+      <h1>Adreslabels <small>DYMO LabelWriter 450 / 550</small></h1>
       <p class="sub">Klik op een adres om het te wijzigen. Tags zijn alleen voor jou en worden niet geprint.</p>
     </div>
     <div class="row">
@@ -209,11 +209,11 @@ dialog form { display: grid; gap: 14px; padding: 20px; }
         <input id="copies" type="number" min="1" max="50" value="1">
       </div>
       <details>
-        <summary>Zo print je op de DYMO 550</summary>
+        <summary>Zo print je op de DYMO</summary>
         <ol>
           <li>Plaats de rol (bijv. 99010) en kies hetzelfde formaat hierboven.</li>
           <li>Kies een tag om alleen die adressen te printen, of laat <b>Alle</b> aan.</li>
-          <li>Klik <b>Printen</b>, kies <b>DYMO LabelWriter 550</b>, marges <b>Geen</b>, schaal <b>100%</b>, geen kop- en voetteksten.</li>
+          <li>Klik <b>Printen</b>, kies je <b>DYMO LabelWriter</b> (450 of 550), marges <b>Geen</b>, schaal <b>100%</b>, geen kop- en voetteksten.</li>
           <li>Of download de PDF: elke pagina is precies één label. Print op <b>Werkelijke grootte</b>.</li>
         </ol>
       </details>
@@ -315,7 +315,7 @@ dialog form { display: grid; gap: 14px; padding: 20px; }
   ];
   const STORE_PREFIX = "dymo.v2.";
 
-  // DYMO LabelWriter labels die de 550 ondersteunt (alleen originele DYMO-rollen werken op de 550).
+  // LabelWriter-labels voor de 450 en 550 (de 550 accepteert alleen originele DYMO-rollen).
   const FORMATS = [
     { id: "99010", name: "99010 – Standaard adres", w: 89, h: 28, max: 12 },
     { id: "99012", name: "99012 – Groot adres", w: 89, h: 36, max: 14 },

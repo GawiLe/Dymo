@@ -1,4 +1,4 @@
-# Adreslabels DYMO LabelWriter 550
+# Adreslabels DYMO LabelWriter 450 / 550
 
 Open `index.html` in Chrome of Edge (dubbelklikken is genoeg).
 
@@ -8,7 +8,7 @@ Open `index.html` in Chrome of Edge (dubbelklikken is genoeg).
    Kolommen zoals *Naam, Bedrijf, Straat, Huisnummer, Postcode, Plaats, Land, Tags* worden automatisch herkend.
 4. **Tags** (bijv. *Familie*, *Vrienden*) worden niet geprint. Klik op een tag bovenaan om te filteren en te zien
    hoeveel adressen erbij horen; sorteer op tag, naam of plaats.
-5. Klik **Printen** (printer *DYMO LabelWriter 550*, marges *Geen*, schaal *100%*) of **PDF**. Alleen de adressen
+5. Klik **Printen** (printer *DYMO LabelWriter 450* of *550*, marges *Geen*, schaal *100%*) of **PDF**. Alleen de adressen
    in het huidige filter worden geprint.
 
 Adressen worden in de browser bewaard. **Exporteren** maakt een CSV-reservekopie die je weer kunt importeren.
